@@ -1,4 +1,4 @@
-EPBpredict=function(emat,cls,scorecut=0.8,npairs=10,sepat=0,doplot=TRUE) {
+EPBpredict.resample=function(emat,cls,scorecut=0.8,npairs=10,sepat=0,doplot=TRUE) {
 # emat -- expression matrix
 # cls -- annotate charactor factor or vector, present class label of samples. 
 # scorecut -- criterion for discarding low score pairs.
@@ -112,18 +112,29 @@ gs=gs[-c(2*dis-1,2*dis),]
 prof=list(g1=gs[,i1],g2=gs[,i2],mat=gs,sc=prof$sc[-dis],cls=cls)
 } else break 
 }
-
-
 #print("ok2")
-############################################## bootstrapping the prediction accuracy based on generated "prof"
-boot.epbPredict <- function(ds,indices,cutat=0) {
+############################################## resamplling the prediction accuracy based on generated "prof"
+resample.epbPredict <- function(ds,indices,cutat=0) {
+cls=ds[,1]
+i1=which(cls %in% levels(cls)[1])
+i2=which(cls %in% levels(cls)[2])
+n1=length(i1)
+n2=length(i2)
+indices=c(sample(1:n1,ceiling(n1/2)),sample((n1+1):(n1+n2),ceiling(n2/2)))
 d=ds[indices,];
 cls=d[,1]
 i1=which(cls %in% levels(cls)[1])
 i2=which(cls %in% levels(cls)[2])
-mat=t(d[,-1])
-prof=list(g1=mat[,i1],g2=mat[,i2],mat=mat[,c(i1,i2)],sc=NA,cls=cls)
+matt=t(d[,-1])
+prof=list(g1=matt[,i1],g2=matt[,i2],mat=matt[,c(i1,i2)],sc=NA,cls=cls)
 accu=accuEstimate(prof,cutat=cutat)$accuval
+d=ds[-indices,];
+cls=d[,1]
+i1=which(cls %in% levels(cls)[1])
+i2=which(cls %in% levels(cls)[2])
+matp=t(d[,-1])
+prof=list(g1=matt[,i1],g2=matt[,i2],mat=matp[,c(i1,i2)],sc=NA,cls=cls)
+accu=c(accu,accuEstimate(prof,cutat=cutat)$accuval)
 }
 
 profmat=cbind(prof$g1,prof$g2)
@@ -132,12 +143,13 @@ strata=rep(1,length(cls))
 strata[cls==levels(cls)[2]]=2
 
 require(boot)
-bootout=boot(df,statistic=boot.epbPredict,R=1000,strata=strata,cutat=sepat)
-profileAndBootRes=list(profile=prof,bootres=bootout,outmat=mat,outcls=cls,score=sco,selectedMat=selectedMat)
+resampleout=boot(df,statistic=resample.epbPredict,R=1000,strata=strata,cutat=sepat)
+resampleout$t0 = rep(accuEstimate(prof,cutat=sepat)$accuval,2)
+profileAndresampleRes=list(profile=prof,resampleres=resampleout,outmat=mat,outcls=cls,score=sco,selectedMat=selectedMat)
 #print("ok3")
 ##################################################### produce plot
 plot.profile <- function(prof,cutat=0) {
-# prof is a list of prof generated in the maon function
+# prof is a list of prof generated in the main function
 obj=accuEstimate(prof,cutat=sepat)$obj
 x11()
 par(mfcol=c(1,2))
@@ -158,35 +170,39 @@ legend("bottomleft",pch=1,legend=obj$group,col=c(1,3))
 axis(side=1,at=1:length(obj$corrdiff),labels=rownames(obj$corrdiff),las=2,cex.axis=0.8)
 }
 
-plot.bootout <- function(bootout) {
-## bootout is a list object geberated by "boot" and it run within EPBpredict function
-x=bootout
+plot.resampleout <- function(resampleout) {
+## resampleout is a list object geberated by "resample" and it run within EPBpredict function
+x=resampleout
+tit=c("Trainning","Prediction")
 a0=x$t0
 a=x$t
 b=c(a,a0)
 x11()
-par(mfcol=c(1,2))
-hist(a,n=31,xlab="Accuracy",ylab="Frequency",main="Histogram")
+par(mfrow=c(2,2))
+for(i in 1:2) {
+a0=x$t0[i]
+a=x$t[,i]
+b=c(a,a0)
+hist(a,n=31,xlab="Accuracy",ylab="Frequency",main=tit[i])
 abline(v=mean(a),lty=2,col=3)
 ci=mean(a)+c(-1,1)*qnorm(0.025,0,1)*sd(a)
-lines(ci,c(0,0),lwd=6,col=3)
+lines(ci,c(0,0),lwd=5,col=3)
 points(a0,0,cex=2,pch=4,col=2)
-mtext(side=3,line=2,cex=1.4,text="A",adj=0)
+mtext(side=3,line=2,cex=1.4,text=paste0("A",i),adj=0)
 
-xy=qqnorm(b,xlab="Standard Normal", ylab="Accuracy",main="qqplot",col=c(rep(1,length(a)),2),cex=c(rep(0.8,length(a)),2))
+xy=qqnorm(b,xlab="Standard Normal", ylab="Accuracy",main=tit[i],col=c(rep(1,length(a)),2),pch=4,cex=c(rep(0.5,length(a)),2))
 abline(lm(xy$y ~ xy$x),lty=1,col=2)
-abline(h=mean(xy$y),col=3,lty=3)
+abline(h=mean(xy$y),col=3,lty=2)
 lines(c(par()$usr[1],par()$usr[1]),ci,lwd=6,col=3)
-mtext(side=3,line=2,cex=1.4,text="B",adj=0)
-
-#print(intcept)
+mtext(side=3,line=2,cex=1.4,text=paste0("B",i),adj=0)
+}
 }
 
 if(doplot){
 if(!is.null(prof)) plot.profile(prof,cutat=sepat) else warning("profile does not exist, no figure generated2")
-if(!is.null(bootout)) plot.bootout(bootout) else warning("bootout does not exist, no figure generated2")
+if(!is.null(resampleout)) plot.resampleout(resampleout) else warning("resampleout does not exist, no figure generated2")
 }
-profileAndBootRes
+profileAndresampleRes
 
 }
 
