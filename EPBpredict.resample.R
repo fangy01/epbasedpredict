@@ -160,20 +160,23 @@ lines(1:nrow(obj$g1),rowMeans(obj$g2),col=6,lwd=4)
 axis(side=1,at=1:length(obj$genes),labels=obj$genes,las=2,cex.axis=0.8)
 legd=c(paste0(obj$group,"s"),paste0(obj$group,"_profile"))
 legend("topright",legend=legd,lty=1,lwd=c(1,1,4,4),col=c(1,3,4,6))
+mtext(side=3,line=0.5,cex=1.4,text="A",adj=0)
 
 plot(1:ncol(obj$mat),obj$corrdiff,col=obj$col,main="",xlab="",ylab="Correlation difference",xaxt="n");
 abline(h=0,lty=2)
 lines(c(1,ncol(obj$g1)),c(par()$usr[3],par()$usr[3]),lwd=8,col=1)
 lines(c(ncol(obj$g1)+1,ncol(obj$mat)),c(par()$usr[3],par()$usr[3]),lwd=8,col=3)
 abline(h=cutat,col="red")
-legend("bottomleft",pch=1,legend=obj$group,col=c(1,3))
-axis(side=1,at=1:length(obj$corrdiff),labels=rownames(obj$corrdiff),las=2,cex.axis=0.8)
+#legend("bottomleft",pch=1,legend=obj$group,col=c(1,3))
+at=c(ncol(obj$g1)/2,ncol(obj$g1)+ncol(obj$g2)/2)
+axis(side=1,at=at,labels=obj$group,las=2,cex.axis=0.8)
+mtext(side=3,line=0.5,cex=1.4,text="B",adj=0)
 }
 
 plot.resampleout <- function(resampleout) {
 ## resampleout is a list object geberated by "resample" and it run within EPBpredict function
 x=resampleout
-tit=c("Trainning","Prediction")
+tit=c("Training","Prediction")
 a0=x$t0
 a=x$t
 b=c(a,a0)
